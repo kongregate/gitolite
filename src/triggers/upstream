@@ -14,7 +14,16 @@ cd $GL_REPO_BASE/$repo.git || exit 1
     [ -n "$nice" ] && find FETCH_HEAD -mmin -$nice 2>/dev/null | grep . >/dev/null && exit 0
 }
 
-git fetch -q "$url" '+refs/*:refs/*'
+lockfile=/var/lock/gitolite/`echo $repo | sed 's/.*\///'`.lock
+tmp=`mktemp`
+(
+  flock -xn 200 || exit 1
+  git fetch -q $url '+refs/*:refs/*'
+  echo $? > $tmp
+) 200>$lockfile
+
+[ -s $tmp ] && exit `cat $tmp`
+flock -s -w 300 $lockfile -c ''
 
 # ----------------------------------------------------------------------
 
